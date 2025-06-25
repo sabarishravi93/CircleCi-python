@@ -18,6 +18,20 @@ jobs:
       - image: cimg/python:3.11
     steps:
       - run: echo "Deploying to production server"
+  playwright-test:
+    docker:
+      - image: cimg/base:2023.11
+    parallelism: 4
+    resource_class: large
+    steps:
+      - run:
+          command: |
+            mkdir test-results
+            pnpm run serve &
+            TESTFILES=$(circleci tests glob "specs/e2e/**/*.spec.ts")
+            echo "$TESTFILES" | circleci tests run --command="xargs pnpm playwright test --config=playwright.config.ci.ts --reporter=junit" --verbose --split-by=timings
+      - store_test_results:
+          path: results.xml
 
 workflows:
   build_and_test_deploy:
@@ -32,3 +46,6 @@ workflows:
           filters:
             branches:
               only: main
+      - playwright-test:
+          requires:
+            - build
